@@ -1,0 +1,11 @@
+[
+  {
+    "ProcessType": "Foreground",
+    "ProcessName": "chrome",
+    "MainWindowTitle": "Bar Label Demo - Matplotlib 3.8.2 documentation - Google Chrome",
+    "Id": 22160,
+    "totalTimes": 51,
+    "initialTime": 1706702786351,
+    "finalTime": 1706702841429
+  }
+]

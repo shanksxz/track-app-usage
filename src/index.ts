@@ -28,12 +28,12 @@ console.log("Getting started\n");
 
         const output = JSON.parse(stdout);
 
-        try {
-            fs.writeFile(outputFilePath, JSON.stringify(output));
-            console.log(`Successfully Written to ${outputFilePath}\n`);
-        } catch (writeError) {
-            console.error(writeError);
-        }
+        fs.writeFile(outputFilePath, JSON.stringify(output), (err: any) => {
+            if (err) {
+                console.log(err);
+            }
+            console.log(`Successfully Written to ${outputFilePath}`);
+        });
     });
 }
 
@@ -97,8 +97,10 @@ function trackUsage(){
             const newTrackFileEntry : TrackFile = {
                 ProcessType : ele.ProcessType,
                 ProcessName : ele.ProcessName,
+                MainWindowTitle : ele.MainWindowTitle,
                 Id : ele.Id,
-                totalTimes : 1
+                totalTimes : 1,
+                initialTime : new Date().getTime(),
             }
             return newTrackFileEntry;
         });
@@ -128,13 +130,49 @@ function trackUsage(){
         });
     })
 
+    //? check for new process in currentProcess
+
+    const newProcess = currentProcess.filter((ele) => {
+        return !trackFile.some((ele2) => {
+            return ele.Id === ele2.Id;
+        });
+    });
+
+    //? track the new process   -- there might be a case where the process is not running but there is an entry in track.json
+    if(newProcess.length > 0){
+        const newTrackFile = newProcess.map((ele : PowerShellCommandOutput) => {
+            const newTrackFileEntry : TrackFile = {
+                ProcessType : ele.ProcessType,
+                ProcessName : ele.ProcessName,
+                MainWindowTitle : ele.MainWindowTitle,
+                Id : ele.Id,
+                totalTimes : 1,
+                initialTime : new Date().getTime(),
+            }
+            return newTrackFileEntry;
+        });
+
+        fs.writeFile(trackFilePath, JSON.stringify([...trackFile, ...newTrackFile]), (err: any) => {
+            if (err) {
+                console.log("Err in writing into trackFile",err);
+            }
+            console.log(`Successfully Written Entry in ${trackFilePath}\n`);
+        });
+
+        return;
+    }
+
+
+
     //? if every process is running than update the entry in track.json 
     if(checkForEveryProcess){
         const newTrackFile = trackFile.map((ele : TrackFile) => {
             const newTrackFileEntry : TrackFile = {
                 ProcessType : ele.ProcessType,
                 ProcessName : ele.ProcessName,
+                MainWindowTitle : ele.MainWindowTitle,
                 Id : ele.Id,
+                initialTime : ele.initialTime,
                 totalTimes : ele.totalTimes + 5
             }
             return newTrackFileEntry;
@@ -169,8 +207,21 @@ function trackUsage(){
     //? reading the details.json
     const detailsFile = readDetailsFile();
 
+    const newNotRunningProcess = notRunningProcess.map((ele : TrackFile) => {
+        const newDetailsFileEntry : TrackFile = {
+            ProcessType : ele.ProcessType,
+            ProcessName : ele.ProcessName,
+            MainWindowTitle : ele.MainWindowTitle,
+            Id : ele.Id,
+            totalTimes : ele.totalTimes,
+            initialTime : ele.initialTime,
+            finalTime : new Date().getTime(),
+        }
+        return newDetailsFileEntry;
+    });
+
     //? updating the details.json
-    const newDetailsFile = [...detailsFile, ...notRunningProcess];
+    const newDetailsFile = [...detailsFile, ...newNotRunningProcess];
 
 
     //? writing the notRunningProcess to details.json

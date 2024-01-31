@@ -10,7 +10,10 @@ export type PowerShellCommandOutput = {
 
 export type TrackFile = {
     ProcessType : 'FOREGROUND' | 'BACKGROUND',
+    MainWindowTitle : string,
     ProcessName : string,
     Id : number,
-    totalTimes : number
+    totalTimes : number,
+    initialTime? : number,
+    finalTime? : number,
 }
