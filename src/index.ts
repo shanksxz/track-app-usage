@@ -2,6 +2,8 @@
 const { exec } = require('child_process')
 const fs = require('fs');
 
+import { promisify } from 'util';
+
 // types
 import { ExecException } from "child_process";
 import {
@@ -17,23 +19,23 @@ const psFilePath = './scripts/index.ps1';
 
 console.log("Getting started\n");
 
-function runPowerShellCommand() : void{
-    exec(`powershell.exe -File ${psFilePath}`, (err: ExecException, stdout: string, stderr: string) => {
+ function runPowerShellCommand() {
+    exec(`powershell.exe -File ${psFilePath}`, async (err: ExecException, stdout: string, stderr: string) => {
 
-        if(err) {
+        if (err) {
             throw err;
         }
+
         const output = JSON.parse(stdout);
 
-        fs.writeFile(outputFilePath, JSON.stringify(output), (err: any) => {
-            if (err) {
-                console.log(err);
-            }
-            console.log(`Successfully Written to ${outputFilePath}`);
-        });
+        try {
+            fs.writeFile(outputFilePath, JSON.stringify(output));
+            console.log(`Successfully Written to ${outputFilePath}\n`);
+        } catch (writeError) {
+            console.error(writeError);
+        }
     });
 }
-
 
 
 function readOutput() : PowerShellCommandOutput[]{
@@ -60,6 +62,20 @@ function readTrackFile() : TrackFile[]{
         return output;
     } catch(err){
         console.log("Err in reading track.json",err);
+        return [];
+    }
+}
+
+function readDetailsFile() : TrackFile[]{
+    try{
+        const rawdata = fs.readFileSync(detailsFilePath,'utf8');
+        if(!rawdata){
+            return [];
+        }
+        const output = JSON.parse(rawdata);
+        return output;
+    } catch(err){
+        console.log("Err in reading details.json",err);
         return [];
     }
 }
@@ -92,7 +108,7 @@ function trackUsage(){
             if (err) {
                 console.log("Err in writing into trackFile",err);
             }
-            console.log(`Successfully Written Entry in ${trackFilePath}`);
+            console.log(`Successfully Written Entry in ${trackFilePath}\n`);
         });
 
         return;
@@ -112,18 +128,19 @@ function trackUsage(){
         });
     })
 
-    //? if every process is running than update the entry in track.json
-
+    //? if every process is running than update the entry in track.json 
     if(checkForEveryProcess){
         const newTrackFile = trackFile.map((ele : TrackFile) => {
             const newTrackFileEntry : TrackFile = {
                 ProcessType : ele.ProcessType,
                 ProcessName : ele.ProcessName,
                 Id : ele.Id,
-                totalTimes : ele.totalTimes + 1
+                totalTimes : ele.totalTimes + 5
             }
             return newTrackFileEntry;
         });
+
+        console.log("newTrackFile",newTrackFile);
 
         fs.writeFile(trackFilePath, JSON.stringify(newTrackFile), (err: any) => {
             if (err) {
@@ -132,7 +149,7 @@ function trackUsage(){
             console.log(`Successfully Written Entry in ${trackFilePath}`);
         });
 
-        // return; //? is this return necessary
+        return; //? is this return necessary
     }
 
     //? if every process is not running than remove the entry from track.json
@@ -149,17 +166,24 @@ function trackUsage(){
         });
     });
 
+    //? reading the details.json
+    const detailsFile = readDetailsFile();
+
+    //? updating the details.json
+    const newDetailsFile = [...detailsFile, ...notRunningProcess];
+
+
     //? writing the notRunningProcess to details.json
-    // fs.writeFile(detailsFilePath, JSON.stringify(notRunningProcess), (err: any) => {
-    //     if (err) {
-    //         console.log("Err in writing into detailsFile",err);
-    //     }
-    //     console.log(`Successfully Written Entry in ${detailsFilePath}`);
-    // });
+    fs.writeFile(detailsFilePath, JSON.stringify(newDetailsFile), (err: any) => {
+        if (err) {
+            console.log("Err in writing into detailsFile",err);
+        }
+        console.log(`Successfully Written Entry in ${detailsFilePath}`);
+    });
 
 
     notRunningProcess.forEach((ele) => {
-        console.log(`Process ${ele.ProcessName} is not running && expected run time is ${ele.totalTimes} seconds`);
+        console.log(`Process ${ele.ProcessName} is not running && expected run time is ${ele.totalTimes} seconds\n`);
     });
 
     //? write to file
@@ -281,8 +305,10 @@ function trackUsage(){
 
 
 //? running the powershell command every 1 second (just for testing)
+
+// runPowerShellCommand();
+
 setInterval(() => {
     runPowerShellCommand();
     trackUsage();
-}, 1000);
-
+}, 5000);
